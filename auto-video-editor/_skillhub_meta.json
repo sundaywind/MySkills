@@ -1,0 +1,11 @@
+{
+  "name": "全自动短视频剪辑流水线 (AutoVideo-Editor)",
+  "installedAt": 1792070000000,
+  "source": "userSettings",
+  "version": "1.0.0",
+  "skillId": "skill_autovideo_editor_custom",
+  "pay_mode": 0,
+  "description_zh": "全自动短视频与口播视频剪辑流水线。输入文案脚本和素材目录，自动搞定配音、双语字幕、镜头拼接、成片导出与剪映草稿工程。",
+  "description_en": "End-to-end automated short video editing pipeline: script parsing, TTS voiceover, bilingual subtitles, B-roll alignment, MP4 rendering, and CapCut/JianYing draft project export.",
+  "iconSource": "letter:auto"
+}

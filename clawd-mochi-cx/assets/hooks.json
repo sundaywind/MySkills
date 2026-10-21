@@ -1,0 +1,88 @@
+{
+  "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          { "type": "command", "command": "__HOOKS_DIR__\\clawd-mochi-codex.cmd -State idle -Mode session-start", "timeout": 6, "statusMessage": "Clawd Mochi: idle" }
+        ]
+      }
+    ],
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          { "type": "command", "command": "__HOOKS_DIR__\\clawd-mochi-codex.cmd", "timeout": 3, "statusMessage": "Clawd Mochi: tool state" }
+        ]
+      }
+    ],
+    "PermissionRequest": [
+      {
+        "matcher": "*",
+        "hooks": [
+          { "type": "command", "command": "__HOOKS_DIR__\\clawd-mochi-codex.cmd", "timeout": 3, "statusMessage": "Clawd Mochi: waiting" }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "*",
+        "hooks": [
+          { "type": "command", "command": "__HOOKS_DIR__\\clawd-mochi-codex.cmd", "timeout": 3, "statusMessage": "Clawd Mochi: working" }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "*",
+        "hooks": [
+          { "type": "command", "command": "__HOOKS_DIR__\\clawd-mochi-codex.cmd", "timeout": 3, "statusMessage": "Clawd Mochi: thinking" }
+        ]
+      }
+    ],
+    "Notification": [
+      {
+        "hooks": [
+          { "type": "command", "command": "__HOOKS_DIR__\\clawd-mochi-codex.cmd", "timeout": 3, "statusMessage": "Clawd Mochi: notify" }
+        ]
+      }
+    ],
+    "PreCompact": [
+      {
+        "matcher": "*",
+        "hooks": [
+          { "type": "command", "command": "__HOOKS_DIR__\\clawd-mochi-codex.cmd", "timeout": 3, "statusMessage": "Clawd Mochi: compacting" }
+        ]
+      }
+    ],
+    "PostCompact": [
+      {
+        "matcher": "*",
+        "hooks": [
+          { "type": "command", "command": "__HOOKS_DIR__\\clawd-mochi-codex.cmd", "timeout": 3, "statusMessage": "Clawd Mochi: thinking" }
+        ]
+      }
+    ],
+    "SubagentStart": [
+      {
+        "matcher": "*",
+        "hooks": [
+          { "type": "command", "command": "__HOOKS_DIR__\\clawd-mochi-codex.cmd", "timeout": 3, "statusMessage": "Clawd Mochi: delegating" }
+        ]
+      }
+    ],
+    "SubagentStop": [
+      {
+        "matcher": "*",
+        "hooks": [
+          { "type": "command", "command": "__HOOKS_DIR__\\clawd-mochi-codex.cmd", "timeout": 3, "statusMessage": "Clawd Mochi: thinking" }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          { "type": "command", "command": "__HOOKS_DIR__\\clawd-mochi-codex.cmd", "timeout": 3, "statusMessage": "Clawd Mochi: turn stopped" }
+        ]
+      }
+    ]
+  }
+}

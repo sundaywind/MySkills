@@ -1,0 +1,130 @@
+{
+  "note": "能力地图，不是可用接口保证。脚本根据本次 get_guidelines 将实际操作归类，未返回的能力显示不可用。",
+  "groups": [
+    {
+      "id": "project",
+      "title": "项目与版本",
+      "purpose": "查看项目、管理项目与多版本时间线；当前是否可新建/切换由接口决定。",
+      "match": [
+        "project",
+        "timelines"
+      ]
+    },
+    {
+      "id": "timeline",
+      "title": "时间线与轨道",
+      "purpose": "放置、移动、切分、更新片段，管理轨道与标记。",
+      "match": [
+        "item",
+        "track",
+        "markers"
+      ]
+    },
+    {
+      "id": "media",
+      "title": "素材进出",
+      "purpose": "查找项目素材、导入本机文件、下载网络视频、取回源素材。",
+      "match": [
+        "asset",
+        "import_url"
+      ]
+    },
+    {
+      "id": "speech",
+      "title": "转写与口播结构",
+      "purpose": "读取台词、定位原话、修正转写、按文字剪辑、处理停顿。",
+      "match": [
+        "transcript",
+        "script"
+      ]
+    },
+    {
+      "id": "captions",
+      "title": "字幕",
+      "purpose": "读取、生成、编辑、设样式和翻译字幕。",
+      "match": [
+        "captions"
+      ]
+    },
+    {
+      "id": "audio",
+      "title": "音频处理",
+      "purpose": "分离音轨、平滑剪切、人声处理；具体功能以当前接口为准。",
+      "match": [
+        "detach_audio",
+        "smooth_audio",
+        "isolate_voice"
+      ]
+    },
+    {
+      "id": "graphics",
+      "title": "动效与视觉身份",
+      "purpose": "创建/修改 JSX 动效素材、应用模板、查字体、管理设计风格。",
+      "match": [
+        "motion_graphic",
+        "template",
+        "design_style",
+        "fonts"
+      ]
+    },
+    {
+      "id": "library",
+      "title": "素材库与效果",
+      "purpose": "查内置转场、效果、音效、缩放、LUT 和外部素材。实际应用通过时间线操作完成。",
+      "match": [
+        "browse_library",
+        "stock_media",
+        "shader"
+      ]
+    },
+    {
+      "id": "generation",
+      "title": "AI 图像与视频",
+      "purpose": "生图、生视频、改图、续视频；可能取决于账号、项目和当前服务。",
+      "match": [
+        "submit_image",
+        "submit_video"
+      ]
+    },
+    {
+      "id": "voice",
+      "title": "配音、配乐与音效生成",
+      "purpose": "生成语音、音乐和音效，选择或管理音色。",
+      "match": [
+        "voice",
+        "submit_music",
+        "submit_sound"
+      ]
+    },
+    {
+      "id": "avatar",
+      "title": "数字人与视频翻译",
+      "purpose": "管理形象、生成数字人视频，翻译配音或同步口型。",
+      "match": [
+        "avatar",
+        "video_translation"
+      ]
+    },
+    {
+      "id": "delivery",
+      "title": "预览、导出与任务进度",
+      "purpose": "检查时间线与合成帧，导出视频/字幕/剪映草稿，查询异步任务。",
+      "match": [
+        "preview_timeline",
+        "get_editor_url",
+        "local_export",
+        "track_progress"
+      ]
+    },
+    {
+      "id": "other",
+      "title": "账号工作流与其他能力",
+      "purpose": "查 ChatCut 账号里的 Workflow Skill、网页工具等；需要时按名称查询。",
+      "match": [
+        "manage_skill",
+        "web_browser",
+        "report_user"
+      ]
+    }
+  ]
+}

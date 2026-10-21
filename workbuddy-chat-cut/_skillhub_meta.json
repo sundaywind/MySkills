@@ -1,0 +1,11 @@
+{
+  "name": "workbuddy视频剪辑(Chatcut)",
+  "installedAt": 1792062642485,
+  "source": "marketplace",
+  "version": "0.1.0",
+  "skillId": "skill_2104416365907730432",
+  "pay_mode": 0,
+  "description_zh": "让 WorkBuddy 连接 ChatCut Desktop，用自然语言完成素材导入、片段剪切与编排、口播剪辑、字幕、配音配乐、转场动效及成片导出。适用于短视频和口播视频制作，具体能力以当前 ChatCut 接口为准。",
+  "description_en": "Connect WorkBuddy to ChatCut Desktop to import media, cut and arrange clips, edit speech-led footage, add captions, voiceovers, music, transitions and motion graphics, and export videos using natural-language requests. Use for short-form and talking-head video production; available capabilities depend on the current ChatCut API.",
+  "iconSource": "letter:auto"
+}

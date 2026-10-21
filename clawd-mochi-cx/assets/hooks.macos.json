@@ -1,0 +1,41 @@
+{
+  "_comment": "Clawd Mochi · WiFi · Codex —— macOS/Linux 版 hooks。合并进 ~/.codex/hooks.json 的 hooks 键。命令里的 $HOME 由 shell 自动展开，用户无需改任何路径。前提：已把 clawd-mochi-codex.sh 复制到 ~/.codex/hooks/，并在同目录放一个 clawd-mochi.url 文件(内容如 http://192.168.1.23)。",
+  "hooks": {
+    "SessionStart": [
+      { "hooks": [ { "type": "command", "command": "bash \"$HOME/.codex/hooks/clawd-mochi-codex.sh\" --state idle --mode session-start", "timeout": 6 } ] }
+    ],
+    "UserPromptSubmit": [
+      { "hooks": [ { "type": "command", "command": "bash \"$HOME/.codex/hooks/clawd-mochi-codex.sh\"", "timeout": 3 } ] }
+    ],
+    "PermissionRequest": [
+      { "matcher": "*", "hooks": [ { "type": "command", "command": "bash \"$HOME/.codex/hooks/clawd-mochi-codex.sh\"", "timeout": 3 } ] }
+    ],
+    "PreToolUse": [
+      { "matcher": "*", "hooks": [ { "type": "command", "command": "bash \"$HOME/.codex/hooks/clawd-mochi-codex.sh\"", "timeout": 3 } ] }
+    ],
+    "PostToolUse": [
+      { "matcher": "*", "hooks": [ { "type": "command", "command": "bash \"$HOME/.codex/hooks/clawd-mochi-codex.sh\"", "timeout": 3 } ] }
+    ],
+    "Notification": [
+      { "hooks": [ { "type": "command", "command": "bash \"$HOME/.codex/hooks/clawd-mochi-codex.sh\"", "timeout": 3 } ] }
+    ],
+    "PreCompact": [
+      { "matcher": "*", "hooks": [ { "type": "command", "command": "bash \"$HOME/.codex/hooks/clawd-mochi-codex.sh\"", "timeout": 3 } ] }
+    ],
+    "PostCompact": [
+      { "matcher": "*", "hooks": [ { "type": "command", "command": "bash \"$HOME/.codex/hooks/clawd-mochi-codex.sh\"", "timeout": 3 } ] }
+    ],
+    "SubagentStart": [
+      { "matcher": "*", "hooks": [ { "type": "command", "command": "bash \"$HOME/.codex/hooks/clawd-mochi-codex.sh\"", "timeout": 3 } ] }
+    ],
+    "SubagentStop": [
+      { "matcher": "*", "hooks": [ { "type": "command", "command": "bash \"$HOME/.codex/hooks/clawd-mochi-codex.sh\"", "timeout": 3 } ] }
+    ],
+    "Stop": [
+      { "hooks": [ { "type": "command", "command": "bash \"$HOME/.codex/hooks/clawd-mochi-codex.sh\"", "timeout": 3 } ] }
+    ],
+    "SessionEnd": [
+      { "hooks": [ { "type": "command", "command": "bash \"$HOME/.codex/hooks/clawd-mochi-codex.sh\"", "timeout": 3 } ] }
+    ]
+  }
+}
