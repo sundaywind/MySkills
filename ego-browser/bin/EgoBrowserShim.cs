@@ -1,11 +1,17 @@
-﻿using System;
+using System;
 using System.IO;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 using System.Diagnostics;
 using System.Security.Principal;
 using System.Runtime.InteropServices;
 
+/// <summary>
+/// EgoBrowser 命令行包装器（Shim）：
+/// 拦截 CLI 调用参数与标准输入，通过计划任务（EgoBrowserShimDaemon）确保后台守护进程运行，
+/// 并将请求投递至 %TEMP%\ego_shim_daemon_queue 文件队列，等待执行完成后回传标准输出与退出码。
+/// </summary>
 class EgoBrowserShim {
     [DllImport("advapi32.dll", SetLastError = true)]
     static extern bool OpenProcessToken(IntPtr ProcessHandle, uint DesiredAccess, out IntPtr TokenHandle);
@@ -15,12 +21,6 @@ class EgoBrowserShim {
 
     [DllImport("advapi32.dll", SetLastError = true, CharSet = CharSet.Unicode)]
     static extern bool CreateProcessWithTokenW(IntPtr hToken, int dwLogonFlags, string lpApplicationName, string lpCommandLine, int dwCreationFlags, IntPtr lpEnvironment, string lpCurrentDirectory, ref STARTUPINFO lpStartupInfo, out PROCESS_INFORMATION lpProcessInformation);
-
-    [DllImport("kernel32.dll", SetLastError = true)]
-    static extern uint WaitForSingleObject(IntPtr hHandle, uint dwMilliseconds);
-
-    [DllImport("kernel32.dll", SetLastError = true)]
-    static extern bool GetExitCodeProcess(IntPtr hProcess, out int lpExitCode);
 
     [DllImport("kernel32.dll", SetLastError = true)]
     static extern bool CloseHandle(IntPtr hObject);
@@ -85,7 +85,6 @@ class EgoBrowserShim {
     }
 
     static byte[] ReadStdinIfExpected(string[] args) {
-        // Only read stdin when `ego-browser nodejs` is invoked WITHOUT `-e` / `--eval`
         bool isStdinNodejs = (args.Length == 1 && string.Equals(args[0], "nodejs", StringComparison.OrdinalIgnoreCase));
         if (!isStdinNodejs || !Console.IsInputRedirected) {
             return null;
@@ -95,7 +94,6 @@ class EgoBrowserShim {
             byte[] firstBuf = new byte[4096];
             Task<int> firstRead = stdin.ReadAsync(firstBuf, 0, firstBuf.Length);
             if (!firstRead.Wait(350)) {
-                // No data arrived within 350ms -> empty non-TTY pipe, do not block
                 return null;
             }
             int n = firstRead.Result;
@@ -171,49 +169,109 @@ class EgoBrowserShim {
         }
     }
 
+    static string GetQueueDir() {
+        string d = Path.Combine(Path.GetTempPath(), "ego_shim_daemon_queue");
+        if (!Directory.Exists(d)) Directory.CreateDirectory(d);
+        return d;
+    }
+
+    static void RunDaemonLoop() {
+        bool createdNew;
+        using (Mutex m = new Mutex(true, @"Local\EgoBrowserShimDaemonMutex", out createdNew)) {
+            if (!createdNew) return;
+            string qDir = GetQueueDir();
+            while (true) {
+                try {
+                    string[] readyFiles = Directory.GetFiles(qDir, "*.ready");
+                    foreach (string rFile in readyFiles) {
+                        string id = Path.GetFileNameWithoutExtension(rFile);
+                        File.Delete(rFile);
+                        Task.Run(() => {
+                            try {
+                                string fReq = Path.Combine(qDir, id + ".req");
+                                string fDir = Path.Combine(qDir, id + ".dir");
+                                string fIn  = Path.Combine(qDir, id + ".in");
+                                string fOut = Path.Combine(qDir, id + ".out");
+                                string fErr = Path.Combine(qDir, id + ".err");
+                                string fDone = Path.Combine(qDir, id + ".done");
+                                string rawArgs = File.ReadAllText(fReq, Encoding.UTF8);
+                                string workDir = File.ReadAllText(fDir, Encoding.UTF8);
+                                byte[] stdinBytes = File.Exists(fIn) ? File.ReadAllBytes(fIn) : null;
+                                int code = RunDirect(rawArgs, workDir, stdinBytes, fOut, fErr);
+                                File.WriteAllText(fDone, code.ToString(), Encoding.ASCII);
+                            } catch (Exception ex) {
+                                try {
+                                    File.WriteAllText(Path.Combine(qDir, id + ".err"), ex.Message, new UTF8Encoding(false));
+                                    File.WriteAllText(Path.Combine(qDir, id + ".done"), "1", Encoding.ASCII);
+                                } catch {}
+                            }
+                        });
+                    }
+                } catch {}
+                Thread.Sleep(25);
+            }
+        }
+    }
+
+    /// <summary>
+    /// 检测后台守护进程互斥体是否存在；若未运行，则通过 schtasks 唤醒计划任务启动守护进程
+    /// </summary>
+    static void EnsureDaemonRunning() {
+        bool exists = false;
+        try {
+            using (Mutex m = Mutex.OpenExisting(@"Local\EgoBrowserShimDaemonMutex")) {
+                exists = true;
+            }
+        } catch {
+            exists = false;
+        }
+        if (exists) return;
+
+        string selfExe = Process.GetCurrentProcess().MainModule.FileName;
+        string daemonCmd = "\"" + selfExe + "\" --daemon-loop";
+
+        try {
+            ProcessStartInfo psi = new ProcessStartInfo("schtasks.exe", "/Run /TN \"EgoBrowserShimDaemon\"");
+            psi.UseShellExecute = false;
+            psi.CreateNoWindow = true;
+            using (Process p = Process.Start(psi)) { p.WaitForExit(3000); }
+        } catch {}
+        for (int i = 0; i < 40; i++) {
+            try {
+                using (Mutex m = Mutex.OpenExisting(@"Local\EgoBrowserShimDaemonMutex")) {
+                    return;
+                }
+            } catch {
+                Thread.Sleep(25);
+            }
+        }
+    }
+
+    /// <summary>
+    /// Shim 主入口：生成唯一请求 ID，写入参数与 stdin 到临时队列，轮询等待 .done 完成标志并输出结果
+    /// </summary>
     static int Main(string[] args) {
         Console.OutputEncoding = new UTF8Encoding(false);
         try {
-            if (args.Length == 6 && args[0] == "--deelevated-worker") {
-                string reqFile = args[1];
-                string workDirFile = args[2];
-                string stdinFile = args[3];
-                string outFile = args[4];
-                string errFile = args[5];
-                string rawArgs = File.ReadAllText(reqFile, Encoding.UTF8);
-                string workDir = File.ReadAllText(workDirFile, Encoding.UTF8);
-                byte[] stdinBytes = File.Exists(stdinFile) ? File.ReadAllBytes(stdinFile) : null;
-                return RunDirect(rawArgs, workDir, stdinBytes, outFile, errFile);
+            if (args.Length == 1 && args[0] == "--daemon-loop") {
+                RunDaemonLoop();
+                return 0;
             }
 
             string currentRawArgs = ExtractRawArgs(Environment.CommandLine);
             byte[] capturedStdin = ReadStdinIfExpected(args);
 
-            if (!IsElevated()) {
-                return RunDirect(currentRawArgs, Environment.CurrentDirectory, capturedStdin, null, null);
-            }
+            EnsureDaemonRunning();
 
-            Process[] exps = Process.GetProcessesByName("explorer");
-            if (exps.Length == 0) {
-                return RunDirect(currentRawArgs, Environment.CurrentDirectory, capturedStdin, null, null);
-            }
-
-            IntPtr hToken, hDupToken;
-            if (!OpenProcessToken(exps[0].Handle, 0x0002 | 0x0008, out hToken)) {
-                return RunDirect(currentRawArgs, Environment.CurrentDirectory, capturedStdin, null, null);
-            }
-            if (!DuplicateTokenEx(hToken, 0x02000000, IntPtr.Zero, 2, 1, out hDupToken)) {
-                CloseHandle(hToken);
-                return RunDirect(currentRawArgs, Environment.CurrentDirectory, capturedStdin, null, null);
-            }
-
+            string qDir = GetQueueDir();
             string id = Guid.NewGuid().ToString("N");
-            string tempDir = Path.GetTempPath();
-            string fReq = Path.Combine(tempDir, "ego_req_" + id + ".txt");
-            string fDir = Path.Combine(tempDir, "ego_dir_" + id + ".txt");
-            string fIn  = Path.Combine(tempDir, "ego_in_"  + id + ".bin");
-            string fOut = Path.Combine(tempDir, "ego_out_" + id + ".txt");
-            string fErr = Path.Combine(tempDir, "ego_err_" + id + ".txt");
+            string fReq  = Path.Combine(qDir, id + ".req");
+            string fDir  = Path.Combine(qDir, id + ".dir");
+            string fIn   = Path.Combine(qDir, id + ".in");
+            string fOut  = Path.Combine(qDir, id + ".out");
+            string fErr  = Path.Combine(qDir, id + ".err");
+            string fRdy  = Path.Combine(qDir, id + ".ready");
+            string fDone = Path.Combine(qDir, id + ".done");
 
             try {
                 File.WriteAllText(fReq, currentRawArgs, new UTF8Encoding(false));
@@ -221,26 +279,14 @@ class EgoBrowserShim {
                 if (capturedStdin != null && capturedStdin.Length > 0) {
                     File.WriteAllBytes(fIn, capturedStdin);
                 }
+                File.WriteAllText(fRdy, "1", Encoding.ASCII);
 
-                string selfExe = Process.GetCurrentProcess().MainModule.FileName;
-                string workerCmd = "\"" + selfExe + "\" --deelevated-worker \"" + fReq + "\" \"" + fDir + "\" \"" + fIn + "\" \"" + fOut + "\" \"" + fErr + "\"";
-
-                STARTUPINFO si = new STARTUPINFO();
-                si.cb = Marshal.SizeOf(si);
-                PROCESS_INFORMATION pi;
-                bool ok = CreateProcessWithTokenW(hDupToken, 0, selfExe, workerCmd, 0x08000000, IntPtr.Zero, Environment.CurrentDirectory, ref si, out pi);
-                CloseHandle(hDupToken);
-                CloseHandle(hToken);
-
-                if (!ok) {
-                    return RunDirect(currentRawArgs, Environment.CurrentDirectory, capturedStdin, null, null);
+                while (!File.Exists(fDone)) {
+                    Thread.Sleep(25);
                 }
 
-                WaitForSingleObject(pi.hProcess, 0xFFFFFFFF);
                 int exitCode = 0;
-                GetExitCodeProcess(pi.hProcess, out exitCode);
-                CloseHandle(pi.hProcess);
-                CloseHandle(pi.hThread);
+                int.TryParse(File.ReadAllText(fDone, Encoding.ASCII).Trim(), out exitCode);
 
                 if (File.Exists(fOut)) {
                     string o = File.ReadAllText(fOut, Encoding.UTF8);
@@ -252,11 +298,13 @@ class EgoBrowserShim {
                 }
                 return exitCode;
             } finally {
-                try { if (File.Exists(fReq)) File.Delete(fReq); } catch {}
-                try { if (File.Exists(fDir)) File.Delete(fDir); } catch {}
-                try { if (File.Exists(fIn))  File.Delete(fIn);  } catch {}
-                try { if (File.Exists(fOut)) File.Delete(fOut); } catch {}
-                try { if (File.Exists(fErr)) File.Delete(fErr); } catch {}
+                try { if (File.Exists(fReq))  File.Delete(fReq);  } catch {}
+                try { if (File.Exists(fDir))  File.Delete(fDir);  } catch {}
+                try { if (File.Exists(fIn))   File.Delete(fIn);   } catch {}
+                try { if (File.Exists(fOut))  File.Delete(fOut);  } catch {}
+                try { if (File.Exists(fErr))  File.Delete(fErr);  } catch {}
+                try { if (File.Exists(fRdy))  File.Delete(fRdy);  } catch {}
+                try { if (File.Exists(fDone)) File.Delete(fDone); } catch {}
             }
         } catch (Exception ex) {
             Console.Error.WriteLine("ego-browser shim error: " + ex.Message);
